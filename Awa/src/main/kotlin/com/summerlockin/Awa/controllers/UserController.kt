@@ -1,5 +1,6 @@
 package com.summerlockin.Awa.controllers
 
+import com.summerlockin.Awa.DTO.JoinRoomRequest
 import com.summerlockin.Awa.DTO.UserRegisterRequest
 import com.summerlockin.Awa.DTO.UserResponse
 import com.summerlockin.Awa.DTO.UserUpdateRequest
@@ -17,6 +18,27 @@ class UserController (
         val createdUser = userService.createUser(request)
         return ResponseEntity.ok(createdUser)
     }
+
+    @GetMapping("/room/{roomId}")
+    fun getUsersByRoom(@PathVariable roomId: String): ResponseEntity<List<UserResponse>> {
+        val users = userService.getUsersInRoom(roomId)
+        return ResponseEntity.ok(users)
+    }
+
+
+    @PostMapping("/{userId}/join-room")
+    fun joinRoom(@PathVariable userId: String, @RequestBody request: JoinRoomRequest): ResponseEntity<UserResponse> {
+        val updatedUser = userService.joinRoom(userId, request.code)
+        return ResponseEntity.ok(updatedUser)
+    }
+
+    @PatchMapping("/{userId}/leave-room")
+    fun leaveRoom(@PathVariable userId: String): ResponseEntity<UserResponse> {
+        val updatedUser = userService.leaveRoom(userId)
+        return ResponseEntity.ok(updatedUser)
+    }
+
+
 
     @GetMapping("/{id}")
     fun findUser(@PathVariable id :String ):ResponseEntity<UserResponse>{
@@ -38,5 +60,8 @@ class UserController (
         val deactivatedUser = userService.deactivateUser(id)
         return ResponseEntity.ok(deactivatedUser)
     }
+
+
+
 
 }
