@@ -33,8 +33,18 @@ class GlobalExceptionHandler {
             HttpStatus.INTERNAL_SERVER_ERROR
         )
     }
+
+    @ExceptionHandler(UnauthorizedException::class)
+    fun handleUnauthorized(ex: UnauthorizedException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity(
+            ErrorResponse(ex.message ?: "Unauthorized"),
+            HttpStatus.UNAUTHORIZED
+        )
+    }
 }
 
 data class ErrorResponse(
-    val message: String
+    val message: String,
+    //for debugging
+    val timestamp: String = java.time.Instant.now().toString()
 )
