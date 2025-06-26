@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -22,11 +23,22 @@ class MessageController(
         return ResponseEntity.status(201).body(createdMessage)
     }
 
-    @GetMapping("api/messages/{roomId}")
+    @GetMapping("/{roomId}")
     fun getMessages(@PathVariable roomId: String): ResponseEntity<List<MessageResponse>> {
         val messages = messageService.getMessages(roomId)
         return ResponseEntity.ok().body(messages)
     }
+
+    @PostMapping("/{messageId}/react")
+    fun reactToMessage(
+        @PathVariable messageId: String,
+        @RequestParam userId: String,
+        @RequestParam emoji: String
+    ): ResponseEntity<MessageResponse> {
+        val updated = messageService.reactToMessage(messageId, userId, emoji)
+        return ResponseEntity.ok(updated)
+    }
+
 
 
 
