@@ -2,6 +2,8 @@ package com.summerlockin.Awa.service
 
 import com.summerlockin.Awa.DTO.RoomCreateRequest
 import com.summerlockin.Awa.DTO.RoomResponse
+import com.summerlockin.Awa.DTO.RoomUpdateRequest
+import com.summerlockin.Awa.exception.NotFoundException
 import com.summerlockin.Awa.model.Room
 import com.summerlockin.Awa.repository.RoomRepository
 import org.bson.types.ObjectId
@@ -28,6 +30,22 @@ class RoomService(
             ?: throw IllegalArgumentException("Room with code $code not found")
         return room.toDTO()
     }
+
+    fun updateRoom(roomId: String, request: RoomUpdateRequest): RoomResponse {
+        val room = roomRepository.findById(ObjectId(roomId))
+            .orElseThrow { NotFoundException("Room not found with ID $roomId") }
+
+        val updatedRoom = room.copy(
+            name = request.name ?: room.name,
+            code = request.code ?: room.code
+        )
+
+        return roomRepository.save(updatedRoom).toDTO()
+    }
+
+
+
+
 
 
 

@@ -2,10 +2,12 @@ package com.summerlockin.Awa.controllers
 
 import com.summerlockin.Awa.DTO.RoomCreateRequest
 import com.summerlockin.Awa.DTO.RoomResponse
+import com.summerlockin.Awa.DTO.RoomUpdateRequest
 import com.summerlockin.Awa.service.RoomService
 import org.apache.coyote.Response
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -30,6 +32,14 @@ class RoomController(
         val room = roomService.getRoomByCode(code)
         return ResponseEntity.ok(room)
     }
+
+    @PatchMapping("/{roomId}")
+    fun updateRoom(@PathVariable roomId: String, @RequestBody request: RoomUpdateRequest
+    ): ResponseEntity<RoomResponse> {
+        val updatedRoom = roomService.updateRoom(roomId, request)
+        return ResponseEntity.ok(updatedRoom)
+    }
+
 
 
 }

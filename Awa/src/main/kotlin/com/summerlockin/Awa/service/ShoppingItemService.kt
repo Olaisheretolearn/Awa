@@ -39,6 +39,7 @@ class ShoppingItemService(
     }
 
     //patch a shopping item
+    fun editShoppingItem()
 
     //get all shopping items in a room
 
