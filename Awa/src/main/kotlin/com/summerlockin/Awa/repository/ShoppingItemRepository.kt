@@ -14,7 +14,7 @@ interface ShoppingItemRepository: MongoRepository<ShoppingItem, ObjectId> {
     fun findAllByRoomIdAndAddedByUserId(roomId: ObjectId, addedByUserId: ObjectId): List<ShoppingItem>
 
 
-    fun findAllByRoomIdAndBoughtBy(roomId: ObjectId, boughtBy: ObjectId): List<ShoppingItem>
+    fun findAllByRoomIdAndBoughtByUserId(roomId: ObjectId, boughtBy: ObjectId): List<ShoppingItem>
 
 
 
