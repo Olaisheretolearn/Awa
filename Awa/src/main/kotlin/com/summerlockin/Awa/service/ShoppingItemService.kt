@@ -16,9 +16,10 @@ class ShoppingItemService(
     private val shoppingItemRepository: ShoppingItemRepository
 ) {
 
-    fun createShoppingItem(request: ShoppingItemCreateRequest): ShoppingItemResponse {
+
+    fun createShoppingItem(roomId: String, request: ShoppingItemCreateRequest): ShoppingItemResponse {
         val shoppingItem = ShoppingItem(
-            roomId = ObjectId(request.roomId),
+            roomId = ObjectId(roomId),
             listName = request.listName,
             itemName = request.itemName,
             addedByUserId = ObjectId(request.addedByUserId),
@@ -30,7 +31,6 @@ class ShoppingItemService(
         )
         return shoppingItemRepository.save(shoppingItem).toDTO()
     }
-
 
     fun deleteShoppingItem(itemId: String): Boolean {
         val item = shoppingItemRepository.findById(ObjectId(itemId))

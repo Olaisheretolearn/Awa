@@ -19,9 +19,11 @@ class ShoppingItemController(
         @PathVariable roomId: String,
         @RequestBody request: ShoppingItemCreateRequest
     ): ResponseEntity<ShoppingItemResponse> {
-        val item = shoppingItemService.createShoppingItem(request)
+        val item = shoppingItemService.createShoppingItem(roomId, request)
         return ResponseEntity.status(201).body(item)
     }
+
+
 
     @PatchMapping("/{itemId}")
     fun updateShoppingItem(

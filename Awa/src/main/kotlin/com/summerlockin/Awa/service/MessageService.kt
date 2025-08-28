@@ -8,6 +8,7 @@ import com.summerlockin.Awa.model.Reaction
 import com.summerlockin.Awa.repository.MessageRepository
 import org.bson.types.ObjectId
 import org.springframework.stereotype.Service
+import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.ZoneOffset
 
@@ -26,6 +27,14 @@ class MessageService(
         )
         return messageRepository.save(message).toDTO()
     }
+
+    fun getMessagesAfter(roomId: String, afterIso: String): List<MessageResponse> {
+        val after = Instant.parse(afterIso)
+        return messageRepository
+            .findAllByRoomIdAndTimestampAfter(ObjectId(roomId), after)
+            .map { it.toDTO() }
+    }
+
 
     fun getMessages (roomId: String): List<MessageResponse> {
         val messages = messageRepository.findAllByRoomIdOrderByTimestampAsc(ObjectId(roomId))
@@ -63,9 +72,9 @@ class MessageService(
 
     private fun Message.toDTO(): MessageResponse {
         return MessageResponse(
-            id = this.id.toString(),
-            roomId = this.roomId.toString(),
-            senderId = this.senderId.toString(),
+            id = this.id?.toHexString() ?: "",
+            roomId = this.roomId.toHexString(),
+            senderId = this.senderId.toHexString(),
             senderName = this.senderName,
             content = this.content,
             timestamp = DateTimeFormatter.ISO_INSTANT.format(this.timestamp.atOffset(ZoneOffset.UTC)),

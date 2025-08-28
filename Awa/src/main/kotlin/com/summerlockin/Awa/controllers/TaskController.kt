@@ -25,11 +25,12 @@ class TaskController(
     @PostMapping
     fun createTask(
         @PathVariable roomId: String,
-        @RequestBody request: TaskCreateRequest
-    ): ResponseEntity<TaskResponse> {
-        val createdTask = taskService.createTask(request)
-        return ResponseEntity.status(201).body(createdTask)
-    }
+        @RequestBody req: TaskCreateRequest
+    ): ResponseEntity<TaskResponse> =
+        ResponseEntity.status(201).body(taskService.createTask(roomId, req))
+
+
+
 
     @PatchMapping("/{taskId}")
     fun updateTask(

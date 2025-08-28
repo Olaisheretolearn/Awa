@@ -4,15 +4,18 @@ import com.summerlockin.Awa.DTO.RoomCreateRequest
 import com.summerlockin.Awa.DTO.RoomResponse
 import com.summerlockin.Awa.DTO.RoomUpdateRequest
 import com.summerlockin.Awa.exception.NotFoundException
+import com.summerlockin.Awa.model.Role
 import com.summerlockin.Awa.model.Room
 import com.summerlockin.Awa.repository.RoomRepository
+import com.summerlockin.Awa.repository.userRepository
 import org.bson.types.ObjectId
 import org.springframework.stereotype.Service
 import java.time.Instant
 
 @Service
 class RoomService(
-    private val roomRepository: RoomRepository
+    private val roomRepository: RoomRepository,
+    private val userRepository: userRepository
 ) {
     fun createRoom(request:RoomCreateRequest):RoomResponse {
         val joinCode = generateJoinCode()
@@ -20,10 +23,25 @@ class RoomService(
             name = request.name,
             code =  joinCode,
             ownerId = ObjectId(request.ownerID),
-            createdAt = Instant.now()
+            city = request.city?.trim().takeUnless { it.isNullOrBlank() },
+            createdAt = Instant.now(),
+
         )
-         return roomRepository.save(room).toDTO()
+        val saved = roomRepository.save(room)
+
+        val owner = userRepository.findById(ObjectId(request.ownerID))
+            .orElseThrow { NotFoundException("Owner user not found") }
+
+        if (owner.roomId == null) {
+            val updatedOwner = owner.copy(roomId = saved.id, role = Role.OWNER)
+            userRepository.save(updatedOwner)
+        }
+
+        return saved.toDTO()
     }
+
+
+
 
     fun getRoomByCode(code: String): RoomResponse {
         val room = roomRepository.findByCode(code)
@@ -37,7 +55,8 @@ class RoomService(
 
         val updatedRoom = room.copy(
             name = request.name ?: room.name,
-            code = request.code ?: room.code
+            code = request.code ?: room.code,
+            city  = request.city?.trim().takeUnless { it.isNullOrBlank() } ?: room.city
         )
 
         return roomRepository.save(updatedRoom).toDTO()
@@ -45,6 +64,16 @@ class RoomService(
 
 
 
+    fun ensureExists(roomId: String) {
+        if (!roomRepository.existsById(ObjectId(roomId))) {
+            throw NotFoundException("ROOM_CODE_INVALID")
+        }
+    }
+
+    fun getRoom(roomId: String): RoomResponse =
+        roomRepository.findById(ObjectId(roomId))
+            .orElseThrow { NotFoundException("Room not found") }
+            .toDTO()
 
 
 
@@ -58,7 +87,8 @@ class RoomService(
             name = this.name,
             code = this.code,
             ownerId = this.ownerId.toString(),
-            createdAt = this.createdAt.toString()
+            createdAt = this.createdAt.toString(),
+            city = city,
         )
     }
 

@@ -4,8 +4,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Component
 
 @Component
-class PasswordEncoder {
+class Encoder {
     private val bcrypt = BCryptPasswordEncoder()
+
+
 
 
     //takes raw passwprds and encodes them / shoulda used delegate instead , but later

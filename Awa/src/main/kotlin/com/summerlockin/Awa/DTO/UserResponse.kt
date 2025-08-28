@@ -6,6 +6,8 @@ data class UserResponse(
     val email: String,
     val createdAt: String,
     val roomId: String? = null,
-    val role: String
+    val role: String,
+    val avatarId: String?,
+    val avatarImageUrl: String?
 )
 

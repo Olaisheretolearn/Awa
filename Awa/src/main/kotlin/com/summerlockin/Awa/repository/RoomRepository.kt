@@ -5,4 +5,5 @@ import org.springframework.data.mongodb.repository.MongoRepository
 
 interface  RoomRepository : MongoRepository<Room, ObjectId> {
     fun findByCode( code :String) :Room?
+
 }

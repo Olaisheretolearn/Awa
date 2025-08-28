@@ -11,5 +11,7 @@ data class Room(
     val name: String,
     val code: String,
     val ownerId: ObjectId,
-    val createdAt: Instant = Instant.now()
-)
+    val createdAt: Instant = Instant.now(),
+    val city: String? = null,
+
+    )

@@ -5,5 +5,6 @@ data class RoomResponse(
     val name :String,
     val code :String,
     val ownerId:String,
+    val city: String?,
     val createdAt:String
 )

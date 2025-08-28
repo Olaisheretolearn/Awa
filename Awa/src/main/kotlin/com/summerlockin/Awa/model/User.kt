@@ -14,7 +14,9 @@ data class User(
     val roomId: ObjectId? = null,
     val role: Role = Role.MEMBER,
     val joinedAt : Instant =Instant.now(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val avatarId: AvatarId? = null
+
 )
 
 enum class Role {

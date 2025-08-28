@@ -9,7 +9,9 @@ data class BillResponse(
     val description: String,
     val amount: Double,
     val dueDate: Instant,
-    val paidByUserId: String? = null,
+    val paidByUserId: String,
     val isPaid: Boolean,
-    val splitAmongUserIds: List<String>
+    val splitAmongUserIds: List<String>,
+    val shares: List<BillShareResponse>,
+    val totalOwedToCreator: Double
 )

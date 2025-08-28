@@ -4,5 +4,6 @@ import jakarta.validation.constraints.Email
 
 data class UserUpdateRequest(
     val email: String?=null,
-    val firstname : String?=null
+    val firstname : String?=null,
+    val avatarId: String? = null
 )

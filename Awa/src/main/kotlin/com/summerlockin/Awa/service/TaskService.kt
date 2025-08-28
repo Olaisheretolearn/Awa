@@ -7,6 +7,7 @@ import com.summerlockin.Awa.exception.NotFoundException
 import com.summerlockin.Awa.exception.UnauthorizedException
 import com.summerlockin.Awa.model.Recurrence
 import com.summerlockin.Awa.model.Task
+import com.summerlockin.Awa.model.TaskIcon
 import com.summerlockin.Awa.repository.TaskRepository
 import org.apache.coyote.Response
 import org.bson.types.ObjectId
@@ -16,54 +17,52 @@ import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 @Service
 class TaskService(
-    private  val taskRepository: TaskRepository
+     private  val taskRepository: TaskRepository
 ) {
 
-    fun createTask(request: TaskCreateRequest): TaskResponse {
+    fun createTask(roomId: String, request: TaskCreateRequest): TaskResponse {
         val task = Task(
             name = request.name,
             description = request.description,
-            roomId = ObjectId(request.roomId),
-            // made an error of not making assignedTo nullable . fixed
+            roomId = ObjectId(roomId),
             assignedTo = request.assignedTo?.let { ObjectId(it) },
             recurrence = request.recurrence,
-            //also made an error of not parsing it
-            nextDueDate = request.nextDueDate?.let { Instant.parse(it) }
+            nextDueDate = request.nextDueDate?.let { Instant.parse(it) },
+            icon = parseIconOrNull(request.icon) ?: TaskIcon.CLEANING,
+            isComplete = false
+
         )
         return taskRepository.save(task).toDTO()
     }
 
-    fun updateTask(taskId: String ,request: TaskUpdateRequest): TaskResponse{
+    private fun parseIconOrNull(id: String?): TaskIcon? =
+        id?.let { TaskIcon.valueOf(it) }
+
+
+    fun updateTask(taskId: String, request: TaskUpdateRequest): TaskResponse {
         val task = taskRepository.findById(ObjectId(taskId))
-            .orElseThrow {
-                RuntimeException("Task not found")
-            }
+            .orElseThrow { NotFoundException("Task not found") }
 
         val updated = task.copy(
             name = request.name ?: task.name,
             description = request.description ?: task.description,
-            roomId = request.roomId?.let{ ObjectId(it)} ?: task.roomId,
-            assignedTo =  request.assignedTo?.let { ObjectId(it) } ?: task.assignedTo,
+            roomId = request.roomId?.let { ObjectId(it) } ?: task.roomId,
+            assignedTo = request.assignedTo?.let { ObjectId(it) } ?: task.assignedTo,
             recurrence = request.recurrence ?: task.recurrence,
             nextDueDate = request.nextDueDate?.let {
-                try {
-                    Instant.parse(it)
-                } catch (e: DateTimeParseException) {
-                    throw IllegalArgumentException("Invalid date format for nextDueDate")
-                }
-            } ?: task.nextDueDate
+                try { Instant.parse(it) }
+                catch (_: DateTimeParseException) { throw IllegalArgumentException("Invalid date format for nextDueDateUtc") }
+            } ?: task.nextDueDate,
+            icon = request.icon?.let { TaskIcon.valueOf(it) } ?: task.icon
         )
 
         return taskRepository.save(updated).toDTO()
     }
 
-    fun getTaskById(taskId: String): TaskResponse{
-        val task = taskRepository.findById(ObjectId(taskId))
-            .orElseThrow{
-                NotFoundException("Task not found")
-            }
-        return task.toDTO()
-    }
+    fun getTaskById(taskId: String): TaskResponse =
+        taskRepository.findById(ObjectId(taskId))
+            .orElseThrow { NotFoundException("Task not found") }
+            .toDTO()
 
 
     //get tasks by room
@@ -105,27 +104,21 @@ class TaskService(
 
     fun regenerateRecurringTasks(): List<TaskResponse> {
         val now = Instant.now()
-        val dueTasks = taskRepository.findByRecurrenceNotAndNextDueDateBefore(
-            Recurrence.NONE,
-            now
-        )
+        val due = taskRepository.findByRecurrenceNotAndNextDueDateBefore(Recurrence.NONE, now)
 
-        val regenerated = dueTasks.map { task ->
-            val nextDate = when (task.recurrence) {
+        val regenerated = due.map { task ->
+            val next = when (task.recurrence) {
                 Recurrence.DAILY -> task.nextDueDate?.plus(1, ChronoUnit.DAYS)
                 Recurrence.WEEKLY -> task.nextDueDate?.plus(1, ChronoUnit.WEEKS)
                 Recurrence.MONTHLY -> task.nextDueDate?.plus(1, ChronoUnit.MONTHS)
-                else -> null
+                Recurrence.NONE -> task.nextDueDate
             }
-
-            task.copy(
-                isComplete = false,
-                nextDueDate = nextDate
-            )
+            task.copy(isComplete = false, nextDueDate = next)
         }
 
         return taskRepository.saveAll(regenerated).map { it.toDTO() }
     }
+
 
 
     fun getTasksByRoomAndStatus(roomId: String, isComplete: Boolean): List<TaskResponse> {
@@ -152,20 +145,21 @@ class TaskService(
     }
 
 
+    private fun Instant.toIso(): String = this.toString()
 
-
-    fun Task.toDTO(): TaskResponse {
-        return TaskResponse(
-            id = this.id.toString(),
+    private fun Task.toDTO(): TaskResponse =
+        TaskResponse(
+            id = this.id?.toHexString() ?: "",
             name = this.name,
             description = this.description,
-            roomId = this.roomId.toString(),
-            assignedTo = this.assignedTo?.toString(),
+            roomId = this.roomId.toHexString(),
+            assignedTo = this.assignedTo?.toHexString(),
             recurrence = this.recurrence,
-            nextDueDate = this.nextDueDate?.toString(),
-            createdDate = this.createdDate.toString(),
-            isComplete = this.isComplete
+            nextDueDate = this.nextDueDate?.toIso(),
+            createdDate = this.createdDate.toIso(),
+            isComplete = this.isComplete,
+            iconId = this.icon?.name,
+            iconImageUrl = this.icon?.imageUrl
         )
-    }
 
 }

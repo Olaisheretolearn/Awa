@@ -1,5 +1,6 @@
 package com.summerlockin.Awa.model
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
@@ -14,9 +15,11 @@ data class Task(
     val roomId: ObjectId,
     val assignedTo: ObjectId? = null,
     val recurrence: Recurrence = Recurrence.NONE,
-    val nextDueDate: Instant? = null,
+    val nextDueDate: Instant?,
+    @CreatedDate
     val createdDate: Instant = Instant.now(),
-    val isComplete: Boolean = false
+    val isComplete: Boolean = false,
+    val icon: TaskIcon? = null
 )
 
 

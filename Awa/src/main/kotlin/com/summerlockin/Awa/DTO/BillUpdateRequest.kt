@@ -7,7 +7,5 @@ data class BillUpdateRequest(
     val description: String? = null,
     val amount: Double? = null,
     val dueDate: Instant? = null,
-    val paidByUserId: String? = null,
-    val isPaid: Boolean? = null,
-    val splitAmongUserIds: List<String>? = null
+    val splitAmongUserIds: List<String>? = null // re-split not supported here (keep simple)
 )
