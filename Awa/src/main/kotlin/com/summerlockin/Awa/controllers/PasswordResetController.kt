@@ -7,10 +7,12 @@ import com.summerlockin.Awa.DTO.ResetPasswordRequest
 import com.summerlockin.Awa.repository.userRepository
 import com.summerlockin.Awa.security.Encoder
 import com.summerlockin.Awa.security.JwtService
+import com.summerlockin.Awa.security.UserPrincipal
 import com.summerlockin.Awa.service.PasswordResetService
 import org.bson.types.ObjectId
 import org.springframework.http.ResponseEntity
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -36,10 +38,10 @@ class PasswordResetController(
 
     @PostMapping("/change-password")
     fun changePassword(
-        @RequestHeader("Authorization") bearer: String,
-        @RequestBody req: ChangePasswordRequest
+        @RequestBody req: ChangePasswordRequest,
+        @AuthenticationPrincipal principal: UserPrincipal
     ): ResponseEntity<Unit> {
-        val userId = jwt.getUserIdFromToken(bearer.removePrefix("Bearer ").trim())
+        val userId = principal.getId()
         val user = userRepository.findById(ObjectId(userId)).orElseThrow { IllegalArgumentException("User not found") }
         if (!encoder.matches(req.oldPassword, user.password)) {
             return ResponseEntity.badRequest().build()

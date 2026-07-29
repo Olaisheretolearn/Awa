@@ -6,6 +6,7 @@ import com.summerlockin.Awa.exception.NotFoundException
 import com.summerlockin.Awa.model.Message
 import com.summerlockin.Awa.model.Reaction
 import com.summerlockin.Awa.repository.MessageRepository
+import com.summerlockin.Awa.repository.userRepository
 import org.bson.types.ObjectId
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -14,21 +15,26 @@ import java.time.ZoneOffset
 
 @Service
 class MessageService(
-    private val messageRepository: MessageRepository
+    private val messageRepository: MessageRepository,
+    private val userRepository: userRepository,
+    private val authorizationService: AuthorizationService
 ) {
 
-    fun createMessage(request: MessageCreateRequest): MessageResponse {
+    fun createMessage(actingUserId: String, request: MessageCreateRequest): MessageResponse {
+        authorizationService.requireMessageRoomAccess(request.roomId, actingUserId)
+        val sender = userRepository.findById(ObjectId(actingUserId)).orElseThrow { NotFoundException("User not found") }
         val message = Message(
             content = request.content,
-            senderId = ObjectId(request.senderId),
-            senderName = request.senderName,
+            senderId = ObjectId(actingUserId),
+            senderName = sender.firstname,
             roomId = ObjectId(request.roomId),
             attachmentUrls = request.attachmentUrls
         )
         return messageRepository.save(message).toDTO()
     }
 
-    fun getMessagesAfter(roomId: String, afterIso: String): List<MessageResponse> {
+    fun getMessagesAfter(roomId: String, actingUserId: String, afterIso: String): List<MessageResponse> {
+        authorizationService.requireMessageRoomAccess(roomId, actingUserId)
         val after = Instant.parse(afterIso)
         return messageRepository
             .findAllByRoomIdAndTimestampAfter(ObjectId(roomId), after)
@@ -36,7 +42,8 @@ class MessageService(
     }
 
 
-    fun getMessages (roomId: String): List<MessageResponse> {
+    fun getMessages (roomId: String, actingUserId: String): List<MessageResponse> {
+        authorizationService.requireMessageRoomAccess(roomId, actingUserId)
         val messages = messageRepository.findAllByRoomIdOrderByTimestampAsc(ObjectId(roomId))
         return messages.map { it.toDTO() }
     }
@@ -45,6 +52,8 @@ class MessageService(
         val message = messageRepository.findById(ObjectId(messageId)).orElseThrow {
             NotFoundException("Message not found with id $messageId")
         }
+
+        authorizationService.requireMessageRoomAccess(message.roomId.toHexString(), userId)
 
         //check if they reacted already
         val existingReaction = message.reactions.find { it.userId == userId }

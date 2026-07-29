@@ -26,16 +26,16 @@ class RoomController(
 ) {
 
     @PostMapping
-    fun createRoom(@RequestBody request : RoomCreateRequest) :ResponseEntity<RoomResponse>{
-        val createdRoom  = roomService.createRoom(request)
+    fun createRoom(@RequestBody request : RoomCreateRequest, @AuthenticationPrincipal principal: UserPrincipal) :ResponseEntity<RoomResponse>{
+        val createdRoom  = roomService.createRoom(principal.getId(), request)
         return ResponseEntity.status(201).body(createdRoom)
     }
 
 
     @GetMapping("/{roomId}/members")
-    fun getMembers(@PathVariable roomId: String): ResponseEntity<List<UserResponse>> {
+    fun getMembers(@PathVariable roomId: String, @AuthenticationPrincipal principal: UserPrincipal): ResponseEntity<List<UserResponse>> {
         roomService.ensureExists(roomId)
-        return ResponseEntity.ok(userService.getUsersInRoom(roomId))
+        return ResponseEntity.ok(userService.getUsersInRoom(roomId, principal.getId()))
     }
 
 
@@ -51,20 +51,21 @@ class RoomController(
             return ResponseEntity.ok(MyRoomResponse(null, emptyList()))
         }
 
-        val room = roomService.getRoom(roomId)
-        val members = userService.getUsersInRoom(roomId)
+        val room = roomService.getRoom(roomId, userId)
+        val members = userService.getUsersInRoom(roomId, userId)
         return ResponseEntity.ok(MyRoomResponse(room, members))
     }
 
     @GetMapping("/id/{roomId}")
-    fun getRoomById(@PathVariable roomId: String): ResponseEntity<RoomResponse> {
-        val room = roomService.getRoom(roomId)  // service already has this
+    fun getRoomById(@PathVariable roomId: String, @AuthenticationPrincipal principal: UserPrincipal): ResponseEntity<RoomResponse> {
+        roomService.ensureExists(roomId)
+        val room = roomService.getRoom(roomId, principal.getId())
         return ResponseEntity.ok(room)
     }
 
     @GetMapping("/code/{code}")
-    fun getRoomByCode(@PathVariable code: String): ResponseEntity<RoomResponse> {
-        val room = roomService.getRoomByCode(code)
+    fun getRoomByCode(@PathVariable code: String, @AuthenticationPrincipal principal: UserPrincipal): ResponseEntity<RoomResponse> {
+        val room = roomService.getRoomByCode(code, principal.getId())
         return ResponseEntity.ok(room)
     }
 
@@ -72,9 +73,9 @@ class RoomController(
 
 
     @PatchMapping("/{roomId}")
-    fun updateRoom(@PathVariable roomId: String, @RequestBody request: RoomUpdateRequest
+    fun updateRoom(@PathVariable roomId: String, @RequestBody request: RoomUpdateRequest, @AuthenticationPrincipal principal: UserPrincipal
     ): ResponseEntity<RoomResponse> {
-        val updatedRoom = roomService.updateRoom(roomId, request)
+        val updatedRoom = roomService.updateRoom(roomId, principal.getId(), request)
         return ResponseEntity.ok(updatedRoom)
     }
 
