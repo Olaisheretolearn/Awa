@@ -19,6 +19,7 @@ class UserService(
     private val userRepository: userRepository,
     private val roomRepository: RoomRepository,
     private val authorizationService: AuthorizationService,
+    private val refreshTokenService: RefreshTokenService,
     //inject encoder later
     private val encoder : Encoder
 ) {
@@ -84,6 +85,7 @@ class UserService(
             throw IllegalArgumentException("Current password incorrect")
         }
         userRepository.save(user.copy(password = encoder.encode(newPassword)))
+        refreshTokenService.revokeAllForUser(userId)
     }
 
 

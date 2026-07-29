@@ -32,7 +32,7 @@ class JwtAuthFilter(
         }
 
         val token = authHeader.substring(7)
-        if (!jwtService.validateToken(token)) {
+        if (!jwtService.validateToken(token) || jwtService.getTokenType(token) != "access") {
             filterChain.doFilter(request, response)
             return
         }
