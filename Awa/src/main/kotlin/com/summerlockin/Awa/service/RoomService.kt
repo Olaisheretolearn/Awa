@@ -15,21 +15,22 @@ import java.time.Instant
 @Service
 class RoomService(
     private val roomRepository: RoomRepository,
-    private val userRepository: userRepository
+    private val userRepository: userRepository,
+    private val authorizationService: AuthorizationService
 ) {
-    fun createRoom(request:RoomCreateRequest):RoomResponse {
+    fun createRoom(ownerId: String, request:RoomCreateRequest):RoomResponse {
         val joinCode = generateJoinCode()
         val room = Room(
             name = request.name,
             code =  joinCode,
-            ownerId = ObjectId(request.ownerID),
+            ownerId = ObjectId(ownerId),
             city = request.city?.trim().takeUnless { it.isNullOrBlank() },
             createdAt = Instant.now(),
 
         )
         val saved = roomRepository.save(room)
 
-        val owner = userRepository.findById(ObjectId(request.ownerID))
+        val owner = userRepository.findById(ObjectId(ownerId))
             .orElseThrow { NotFoundException("Owner user not found") }
 
         if (owner.roomId == null) {
@@ -43,13 +44,15 @@ class RoomService(
 
 
 
-    fun getRoomByCode(code: String): RoomResponse {
+    fun getRoomByCode(code: String, actingUserId: String): RoomResponse {
         val room = roomRepository.findByCode(code)
             ?: throw IllegalArgumentException("Room with code $code not found")
+        authorizationService.requireRoomMember(room.id?.toHexString() ?: throw NotFoundException("Room not found"), actingUserId)
         return room.toDTO()
     }
 
-    fun updateRoom(roomId: String, request: RoomUpdateRequest): RoomResponse {
+    fun updateRoom(roomId: String, actingUserId: String, request: RoomUpdateRequest): RoomResponse {
+        authorizationService.requireRoomOwner(roomId, actingUserId)
         val room = roomRepository.findById(ObjectId(roomId))
             .orElseThrow { NotFoundException("Room not found with ID $roomId") }
 
@@ -70,10 +73,12 @@ class RoomService(
         }
     }
 
-    fun getRoom(roomId: String): RoomResponse =
-        roomRepository.findById(ObjectId(roomId))
+    fun getRoom(roomId: String, actingUserId: String): RoomResponse {
+        authorizationService.requireRoomMember(roomId, actingUserId)
+        return roomRepository.findById(ObjectId(roomId))
             .orElseThrow { NotFoundException("Room not found") }
             .toDTO()
+    }
 
 
 

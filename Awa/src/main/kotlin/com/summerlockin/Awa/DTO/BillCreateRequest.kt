@@ -8,7 +8,6 @@ data class BillCreateRequest(
     val description: String,
     val amount: Double,
     val dueDate: Instant,
-    val paidByUserId: String? = null,
     val isPaid: Boolean = false,                // ignored on create
     val splitAmongUserIds: List<String>?        // optional; if null the client can send all members
 )

@@ -6,6 +6,7 @@ import com.summerlockin.Awa.exception.NotFoundException
 import com.summerlockin.Awa.model.*
 import com.summerlockin.Awa.repository.BillsRepository
 import org.bson.types.ObjectId
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -14,14 +15,16 @@ import java.time.Instant
 @Service
 class BillService(
     private val billsRepository: BillsRepository,
+    private val authorizationService: AuthorizationService,
 ) {
 
-    fun createBill(req: BillCreateRequest): BillResponse {
-        val creator = req.paidByUserId?.let(::ObjectId)
-            ?: throw IllegalArgumentException("paidByUserId is required")
+    fun createBill(req: BillCreateRequest, actingUserId: String): BillResponse {
+        authorizationService.requireBillRoomAccess(req.roomId, actingUserId)
+        val creator = ObjectId(actingUserId)
 
         // participants; ensure payer isn’t in shares
         val raw = (req.splitAmongUserIds ?: emptyList()).map(::ObjectId)
+        authorizationService.requireUsersInRoom(req.roomId, raw.map { it.toHexString() })
         val participants = raw.filterNot { it == creator }
         require(participants.isNotEmpty()) { "No participants to split across (besides payer)" }
 
@@ -54,18 +57,26 @@ class BillService(
         return billsRepository.save(bill).toDTO()
     }
 
-    fun getBillsByRoom(roomId: String): List<BillResponse> =
-        billsRepository.findAllByRoomId(ObjectId(roomId)).map { it.toDTO() }
+    fun getBillsByRoom(roomId: String, actingUserId: String): List<BillResponse> {
+        authorizationService.requireBillRoomAccess(roomId, actingUserId)
+        return billsRepository.findAllByRoomId(ObjectId(roomId)).map { it.toDTO() }
+    }
 
-    fun deleteBill(id: String): Boolean {
+    fun deleteBill(id: String, actingUserId: String): Boolean {
         val bill = find(id)
+        authorizationService.requireBillRoomAccess(bill.roomId.toHexString(), actingUserId)
+        if (bill.paidBy != ObjectId(actingUserId)) {
+            authorizationService.requireRoomOwner(bill.roomId.toHexString(), actingUserId)
+        }
         billsRepository.delete(bill)
         return true
     }
 
     /** Debtor taps "Mark as paid" */
-    fun markSharePaid(billId: String, debtorUserId: String): BillResponse {
+    fun markSharePaid(billId: String, debtorUserId: String, actingUserId: String): BillResponse {
         val bill = find(billId)
+        authorizationService.requireBillRoomAccess(bill.roomId.toHexString(), actingUserId)
+        authorizationService.requireSelf(actingUserId, debtorUserId)
         val idx = bill.shares.indexOfFirst { it.userId == ObjectId(debtorUserId) }
         if (idx == -1) throw NotFoundException("Share not found for user")
         val s = bill.shares[idx]
@@ -76,9 +87,12 @@ class BillService(
     }
 
 
-    fun confirmShare(billId: String, creatorUserId: String, debtorUserId: String, confirm: Boolean): BillResponse {
+    fun confirmShare(billId: String, debtorUserId: String, actingUserId: String, confirm: Boolean): BillResponse {
         val bill = find(billId)
-        require(bill.paidBy == ObjectId(creatorUserId)) { "Only creator can confirm" }
+        authorizationService.requireBillRoomAccess(bill.roomId.toHexString(), actingUserId)
+        if (bill.paidBy != ObjectId(actingUserId)) {
+            throw AccessDeniedException("Only creator can confirm")
+        }
 
         val idx = bill.shares.indexOfFirst { it.userId == ObjectId(debtorUserId) }
         if (idx == -1) throw NotFoundException("Share not found for user")

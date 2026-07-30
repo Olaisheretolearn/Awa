@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service
 class UserService(
     private val userRepository: userRepository,
     private val roomRepository: RoomRepository,
+    private val authorizationService: AuthorizationService,
     //inject encoder later
     private val encoder : Encoder
 ) {
@@ -55,7 +56,8 @@ class UserService(
 
 
 
-    fun findUserById(userId :String ):UserResponse{
+    fun findUserById(userId :String, actingUserId: String):UserResponse{
+        authorizationService.requireSelf(actingUserId, userId)
         val user = userRepository.findById(ObjectId(userId))
             .orElseThrow{
                 NotFoundException("User not found")
@@ -63,7 +65,8 @@ class UserService(
         return user.toDTO()
     }
 
-    fun deactivateUser(userId:String):UserResponse {
+    fun deactivateUser(userId:String, actingUserId: String):UserResponse {
+        authorizationService.requireSelf(actingUserId, userId)
         val user = userRepository.findById(ObjectId(userId))
             .orElseThrow{
                 AlreadyExistsException("User with email already exists")
@@ -73,7 +76,8 @@ class UserService(
             }
 
 
-    fun changePassword(userId: String, current: String, newPassword: String) {
+    fun changePassword(userId: String, actingUserId: String, current: String, newPassword: String) {
+        authorizationService.requireSelf(actingUserId, userId)
         val user = userRepository.findById(ObjectId(userId))
             .orElseThrow { RuntimeException("User not found") }
         if (!encoder.matches(current, user.password)) {
@@ -86,7 +90,8 @@ class UserService(
 
 
 
-    fun updateUser(userId: String, update:UserUpdateRequest):UserResponse{
+    fun updateUser(userId: String, actingUserId: String, update:UserUpdateRequest):UserResponse{
+        authorizationService.requireSelf(actingUserId, userId)
         val user = userRepository.findById(ObjectId(userId))
             .orElseThrow {
                 RuntimeException("User not found")
@@ -103,7 +108,8 @@ class UserService(
         return userRepository.save(updated).toDTO()
     }
 
-    fun joinRoom(userId: String, joinCode: String): UserResponse {
+    fun joinRoom(userId: String, actingUserId: String, joinCode: String): UserResponse {
+        authorizationService.requireSelf(actingUserId, userId)
         val room = roomRepository.findByCode(joinCode)
             ?: throw NotFoundException("Room with code $joinCode not found")
 
@@ -127,7 +133,8 @@ class UserService(
     }
 
 
-    fun leaveRoom(userId: String): UserResponse {
+    fun leaveRoom(userId: String, actingUserId: String): UserResponse {
+        authorizationService.requireSelf(actingUserId, userId)
         val user = userRepository.findById(ObjectId(userId))
             .orElseThrow { NotFoundException("User not found") }
 
@@ -139,7 +146,8 @@ class UserService(
         return userRepository.save(updated).toDTO()
     }
 
-    fun getUsersInRoom(roomId: String): List<UserResponse> {
+    fun getUsersInRoom(roomId: String, actingUserId: String): List<UserResponse> {
+        authorizationService.requireRoomMember(roomId, actingUserId)
         val objectId = ObjectId(roomId)
         val users = userRepository.findByRoomId(objectId)
         return users.map { it.toDTO() }

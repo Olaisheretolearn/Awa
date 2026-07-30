@@ -9,18 +9,21 @@ import com.summerlockin.Awa.model.Recurrence
 import com.summerlockin.Awa.model.Task
 import com.summerlockin.Awa.model.TaskIcon
 import com.summerlockin.Awa.repository.TaskRepository
-import org.apache.coyote.Response
 import org.bson.types.ObjectId
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 @Service
 class TaskService(
-     private  val taskRepository: TaskRepository
+     private  val taskRepository: TaskRepository,
+     private val authorizationService: AuthorizationService
 ) {
 
-    fun createTask(roomId: String, request: TaskCreateRequest): TaskResponse {
+    fun createTask(roomId: String, actingUserId: String, request: TaskCreateRequest): TaskResponse {
+        authorizationService.requireRoomMember(roomId, actingUserId)
+        request.assignedTo?.let { authorizationService.requireRoomMember(roomId, it) }
         val task = Task(
             name = request.name,
             description = request.description,
@@ -39,14 +42,21 @@ class TaskService(
         id?.let { TaskIcon.valueOf(it) }
 
 
-    fun updateTask(taskId: String, request: TaskUpdateRequest): TaskResponse {
+    fun updateTask(roomId: String, taskId: String, actingUserId: String, request: TaskUpdateRequest): TaskResponse {
         val task = taskRepository.findById(ObjectId(taskId))
             .orElseThrow { NotFoundException("Task not found") }
+
+        authorizationService.requireRoomMember(roomId, actingUserId)
+        if (task.roomId != ObjectId(roomId)) {
+            throw NotFoundException("Task not found")
+        }
+        authorizationService.requireTaskRoomAccess(task, actingUserId)
+        authorizationService.requireTaskOwnerOrAssignee(task, actingUserId)
 
         val updated = task.copy(
             name = request.name ?: task.name,
             description = request.description ?: task.description,
-            roomId = request.roomId?.let { ObjectId(it) } ?: task.roomId,
+            roomId = task.roomId,
             assignedTo = request.assignedTo?.let { ObjectId(it) } ?: task.assignedTo,
             recurrence = request.recurrence ?: task.recurrence,
             nextDueDate = request.nextDueDate?.let {
@@ -59,31 +69,44 @@ class TaskService(
         return taskRepository.save(updated).toDTO()
     }
 
-    fun getTaskById(taskId: String): TaskResponse =
-        taskRepository.findById(ObjectId(taskId))
+    fun getTaskById(roomId: String, taskId: String, actingUserId: String): TaskResponse {
+        val task = taskRepository.findById(ObjectId(taskId))
             .orElseThrow { NotFoundException("Task not found") }
-            .toDTO()
+        authorizationService.requireRoomMember(roomId, actingUserId)
+        if (task.roomId != ObjectId(roomId)) {
+            throw NotFoundException("Task not found")
+        }
+        authorizationService.requireTaskRoomAccess(task, actingUserId)
+        return task.toDTO()
+    }
 
 
     //get tasks by room
-    fun getTasksByRoom(roomId: String): List<TaskResponse> {
+    fun getTasksByRoom(roomId: String, actingUserId: String): List<TaskResponse> {
+        authorizationService.requireRoomMember(roomId, actingUserId)
         val tasks = taskRepository.findByRoomId(ObjectId(roomId))
         return tasks.map { it.toDTO() }
     }
 
     //get tasks by user
-    fun getTasksByUser(userId: String): List<TaskResponse> {
+    fun getTasksByUser(userId: String, actingUserId: String): List<TaskResponse> {
+        authorizationService.requireSelf(actingUserId, userId)
         val tasks = taskRepository.findByAssignedTo(ObjectId(userId))
         return tasks.map { it.toDTO() }
     }
 
     // completed tasks
-    fun markTaskComplete(taskId: String, userId: String): TaskResponse {
+    fun markTaskComplete(roomId: String, taskId: String, userId: String): TaskResponse {
         val task = taskRepository.findById(ObjectId(taskId))
             .orElseThrow { NotFoundException("Task not found") }
 
+        authorizationService.requireRoomMember(roomId, userId)
+        if (task.roomId != ObjectId(roomId)) {
+            throw NotFoundException("Task not found")
+        }
+        authorizationService.requireTaskRoomAccess(task, userId)
         if (task.assignedTo != ObjectId(userId)) {
-            throw UnauthorizedException("User not assigned to this task")
+            throw AccessDeniedException("User not assigned to this task")
         }
 
         val updated = task.copy(
@@ -95,16 +118,19 @@ class TaskService(
     }
 
     //get upcoming task , just incase i ever need this
-    fun getUpComingTasks(roomId: String):List<TaskResponse>{
+    fun getUpComingTasks(roomId: String, actingUserId: String):List<TaskResponse>{
+        authorizationService.requireRoomMember(roomId, actingUserId)
         val now  = Instant.now()
         val tasks = taskRepository.findByRoomIdAndNextDueDateAfter(ObjectId(roomId), now)
         return tasks.map { it.toDTO() }
     }
 
 
-    fun regenerateRecurringTasks(): List<TaskResponse> {
+    fun regenerateRecurringTasks(roomId: String, actingUserId: String): List<TaskResponse> {
+        authorizationService.requireRoomOwner(roomId, actingUserId)
         val now = Instant.now()
-        val due = taskRepository.findByRecurrenceNotAndNextDueDateBefore(Recurrence.NONE, now)
+        val due = taskRepository.findByRoomId(ObjectId(roomId))
+            .filter { it.recurrence != Recurrence.NONE && it.nextDueDate != null && it.nextDueDate.isBefore(now) }
 
         val regenerated = due.map { task ->
             val next = when (task.recurrence) {
@@ -121,12 +147,14 @@ class TaskService(
 
 
 
-    fun getTasksByRoomAndStatus(roomId: String, isComplete: Boolean): List<TaskResponse> {
+    fun getTasksByRoomAndStatus(roomId: String, actingUserId: String, isComplete: Boolean): List<TaskResponse> {
+        authorizationService.requireRoomMember(roomId, actingUserId)
         val tasks = taskRepository.findByRoomIdAndIsComplete(ObjectId(roomId), isComplete)
         return tasks.map { it.toDTO() }
     }
 
-    fun getTasksByUserAndStatus(userId: String, isComplete: Boolean): List<TaskResponse> {
+    fun getTasksByUserAndStatus(userId: String, actingUserId: String, isComplete: Boolean): List<TaskResponse> {
+        authorizationService.requireSelf(actingUserId, userId)
         val tasks = taskRepository.findByAssignedToAndIsComplete(ObjectId(userId), isComplete)
         return tasks.map { it.toDTO() }
     }
@@ -136,9 +164,16 @@ class TaskService(
 
 
 
-    fun deleteTask(taskId: String): Boolean {
+    fun deleteTask(roomId: String, taskId: String, actingUserId: String): Boolean {
         val task = taskRepository.findById(ObjectId(taskId))
             .orElseThrow { NotFoundException("Task not found") }
+
+        authorizationService.requireRoomMember(roomId, actingUserId)
+        if (task.roomId != ObjectId(roomId)) {
+            throw NotFoundException("Task not found")
+        }
+        authorizationService.requireTaskRoomAccess(task, actingUserId)
+        authorizationService.requireTaskOwnerOrAssignee(task, actingUserId)
 
         taskRepository.delete(task)
         return true
