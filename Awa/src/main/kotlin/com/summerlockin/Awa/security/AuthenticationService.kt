@@ -18,7 +18,8 @@ class AuthenticationService(
             ?: throw RuntimeException("User not found")
 
         if (!encoder.matches(password, user.password)) {
-            throw RuntimeException("Invalid credentials")
+throw UnauthorizedException("Authentication failed")
+
         }
 
         val accessToken = jwtService.generateAccessToken(user.id!!.toString())
