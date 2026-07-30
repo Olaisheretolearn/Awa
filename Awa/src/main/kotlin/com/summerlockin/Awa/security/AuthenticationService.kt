@@ -1,15 +1,15 @@
 package com.summerlockin.Awa.security
 
 import com.summerlockin.Awa.DTO.AuthResponse
+import com.summerlockin.Awa.exception.UnauthorizedException
 import com.summerlockin.Awa.repository.userRepository
-import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 
 @Service
 class AuthenticationService(
-    private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
+    private val refreshTokenService: com.summerlockin.Awa.service.RefreshTokenService,
     private val userRepository: userRepository,
     private val encoder: PasswordEncoder
 ) {
@@ -22,22 +22,31 @@ class AuthenticationService(
         }
 
         val accessToken = jwtService.generateAccessToken(user.id!!.toString())
-        val refreshToken = jwtService.generateRefreshToken(user.id!!.toString())
+        val refreshToken = refreshTokenService.issueRefreshToken(user.id!!.toString())
 
         return AuthResponse(accessToken, refreshToken)
     }
 
     fun refresh(refreshToken: String): AuthResponse {
-        val userId = jwtService.getUserIdFromToken(refreshToken)
-        if (!jwtService.isRefreshTokenValid(refreshToken, userId)) {
-            throw RuntimeException("Invalid or expired refresh token")
+        if (!jwtService.validateToken(refreshToken) || jwtService.getTokenType(refreshToken) != "refresh") {
+            throw UnauthorizedException("Invalid or expired refresh token")
         }
 
+        val userId = jwtService.getUserIdFromToken(refreshToken)
+        val newRefreshToken = refreshTokenService.rotate(refreshToken)
 
         val newAccess  = jwtService.generateAccessToken(userId)
-        val newRefresh = jwtService.generateRefreshToken(userId)
+        return AuthResponse(newAccess, newRefreshToken)
+    }
 
-        return AuthResponse(newAccess, newRefresh)
+    fun logout(refreshToken: String, revokeAllSessions: Boolean = false) {
+        if (revokeAllSessions) {
+            val userId = jwtService.getUserIdFromToken(refreshToken)
+            refreshTokenService.revokeAllForUser(userId)
+            return
+        }
+
+        refreshTokenService.revoke(refreshToken)
     }
 
 }

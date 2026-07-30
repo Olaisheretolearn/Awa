@@ -5,6 +5,10 @@ import com.summerlockin.Awa.security.AuthenticationService
 
 
 import com.summerlockin.Awa.DTO.AuthResponse
+
+import com.summerlockin.Awa.DTO.LogoutRequest
+
+
 import com.summerlockin.Awa.DTO.RefreshTokenRequest
 import com.summerlockin.Awa.DTO.UserLoginRequest
 import org.springframework.http.ResponseEntity
@@ -28,6 +32,12 @@ class AuthController(
     fun refresh(@RequestBody request: RefreshTokenRequest): ResponseEntity<AuthResponse> {
         val tokens = authService.refresh(request.refreshToken)
         return ResponseEntity.ok(tokens)
+    }
+
+    @PostMapping("/logout")
+    fun logout(@RequestBody request: LogoutRequest): ResponseEntity<Unit> {
+        authService.logout(request.refreshToken, request.revokeAllSessions)
+        return ResponseEntity.ok().build()
     }
 
 }

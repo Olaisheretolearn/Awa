@@ -4,9 +4,8 @@ package com.summerlockin.Awa.controllers
 import com.summerlockin.Awa.DTO.ChangePasswordRequest
 import com.summerlockin.Awa.DTO.ForgotPasswordRequest
 import com.summerlockin.Awa.DTO.ResetPasswordRequest
+import com.summerlockin.Awa.service.RefreshTokenService
 import com.summerlockin.Awa.repository.userRepository
-import com.summerlockin.Awa.security.Encoder
-import com.summerlockin.Awa.security.JwtService
 import com.summerlockin.Awa.security.UserPrincipal
 import com.summerlockin.Awa.service.PasswordResetService
 import org.bson.types.ObjectId
@@ -19,9 +18,9 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/auth")
 class PasswordResetController(
     private val service: PasswordResetService,
-    private val jwt: JwtService,
     private val userRepository: userRepository,
-    private val encoder: PasswordEncoder
+    private val encoder: PasswordEncoder,
+    private val refreshTokenService: RefreshTokenService
 ) {
     @PostMapping("/forgot-password")
     fun forgot(@RequestBody req: ForgotPasswordRequest): ResponseEntity<Unit> {
@@ -47,6 +46,7 @@ class PasswordResetController(
             return ResponseEntity.badRequest().build()
         }
         userRepository.save(user.copy(password = encoder.encode(req.newPassword)))
+        refreshTokenService.revokeAllForUser(userId)
         return ResponseEntity.ok().build()
     }
 }

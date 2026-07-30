@@ -30,7 +30,8 @@ class PasswordResetService(
     private val users: userRepository,
     private val tokens: PasswordResetTokenRepository,
     private val encoder: PasswordEncoder,
-    private val mailer: Mailer
+    private val mailer: Mailer,
+    private val refreshTokenService: RefreshTokenService
 ) {
     private val expiry: Duration = Duration.ofMinutes(60)
 
@@ -66,6 +67,7 @@ class PasswordResetService(
         val user = users.findById(record.userId).orElseThrow { IllegalStateException("User not found") }
         val updated = user.copy(password = encoder.encode(req.newPassword))
         users.save(updated)
+        refreshTokenService.revokeAllForUser(record.userId.toHexString())
 
         tokens.deleteByUserId(record.userId) // one-time use
     }
