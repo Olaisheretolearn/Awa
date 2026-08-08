@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot",
+      "request": "launch",
+      "mainClass": "com.summerlockin.Awa.AwaApplicationKt",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}
