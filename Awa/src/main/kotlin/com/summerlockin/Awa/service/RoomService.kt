@@ -9,7 +9,9 @@ import com.summerlockin.Awa.model.Room
 import com.summerlockin.Awa.repository.RoomRepository
 import com.summerlockin.Awa.repository.userRepository
 import org.bson.types.ObjectId
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
+import java.security.SecureRandom
 import java.time.Instant
 
 @Service
@@ -18,6 +20,8 @@ class RoomService(
     private val userRepository: userRepository,
     private val authorizationService: AuthorizationService
 ) {
+    private val secureRandom = SecureRandom()
+
     fun createRoom(ownerId: String, request:RoomCreateRequest):RoomResponse {
         val joinCode = generateJoinCode()
         val room = Room(
@@ -58,11 +62,32 @@ class RoomService(
 
         val updatedRoom = room.copy(
             name = request.name ?: room.name,
-            code = request.code ?: room.code,
             city  = request.city?.trim().takeUnless { it.isNullOrBlank() } ?: room.city
         )
 
         return roomRepository.save(updatedRoom).toDTO()
+    }
+
+    fun rotateShareCode(roomId: String, actingUserId: String): RoomResponse {
+        authorizationService.requireRoomOwner(roomId, actingUserId)
+        val room = roomRepository.findById(ObjectId(roomId))
+            .orElseThrow { NotFoundException("Room not found with ID $roomId") }
+
+        repeat(CODE_PERSIST_ATTEMPTS) { attempt ->
+            val newCode = generateJoinCode(excluding = room.code)
+
+            try {
+                // MongoDB replaces one document atomically: the old code stops resolving
+                // in the same write that makes the new code available.
+                return roomRepository.save(room.copy(code = newCode)).toDTO()
+            } catch (ex: DuplicateKeyException) {
+                if (attempt == CODE_PERSIST_ATTEMPTS - 1) {
+                    throw IllegalStateException("Could not generate a unique room share code", ex)
+                }
+            }
+        }
+
+        error("Could not generate a unique room share code")
     }
 
 
@@ -97,12 +122,22 @@ class RoomService(
         )
     }
 
-    private fun generateJoinCode(): String {
+    private fun generateJoinCode(excluding: String? = null): String {
         var code: String
         do {
-            code = List(6) { (('A'..'Z') + ('0'..'9')).random() }.joinToString("")
-        } while (roomRepository.findByCode(code) != null)
+            code = buildString(CODE_LENGTH) {
+                repeat(CODE_LENGTH) {
+                    append(CODE_ALPHABET[secureRandom.nextInt(CODE_ALPHABET.length)])
+                }
+            }
+        } while (code == excluding || roomRepository.findByCode(code) != null)
         return code
+    }
+
+    private companion object {
+        const val CODE_LENGTH = 6
+        const val CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        const val CODE_PERSIST_ATTEMPTS = 5
     }
 
 }

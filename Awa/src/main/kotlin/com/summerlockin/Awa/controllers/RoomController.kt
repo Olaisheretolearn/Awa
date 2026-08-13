@@ -6,7 +6,6 @@ import com.summerlockin.Awa.repository.userRepository
 import com.summerlockin.Awa.security.UserPrincipal
 import com.summerlockin.Awa.service.RoomService
 import com.summerlockin.Awa.service.UserService
-import org.apache.coyote.Response
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -79,6 +78,14 @@ class RoomController(
         return ResponseEntity.ok(updatedRoom)
     }
 
+    @PostMapping("/{roomId}/share-code/rotate")
+    fun rotateShareCode(
+        @PathVariable roomId: String,
+        @AuthenticationPrincipal principal: UserPrincipal
+    ): ResponseEntity<RoomResponse> {
+        val updatedRoom = roomService.rotateShareCode(roomId, principal.getId())
+        return ResponseEntity.ok(updatedRoom)
+    }
 
 
 }
