@@ -6,6 +6,7 @@ import com.summerlockin.Awa.DTO.UserResponse
 import com.summerlockin.Awa.DTO.UserUpdateRequest
 import com.summerlockin.Awa.security.UserPrincipal
 import com.summerlockin.Awa.service.UserService
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
@@ -40,7 +41,7 @@ class UserController (
 
 
     @PostMapping("/register")
-    fun createUser(@RequestBody request : UserRegisterRequest): ResponseEntity<UserResponse> {
+    fun createUser(@Valid @RequestBody request : UserRegisterRequest): ResponseEntity<UserResponse> {
         val createdUser = userService.createUser(request)
         return ResponseEntity.ok(createdUser)
     }

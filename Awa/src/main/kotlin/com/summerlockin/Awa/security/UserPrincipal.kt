@@ -24,5 +24,5 @@ class UserPrincipal(private val user : User) : UserDetails{
     override fun isAccountNonExpired() = true
     override fun isAccountNonLocked() = true
     override fun isCredentialsNonExpired() = true
-    override fun isEnabled() = true
+    override fun isEnabled() = user.isActive
 }

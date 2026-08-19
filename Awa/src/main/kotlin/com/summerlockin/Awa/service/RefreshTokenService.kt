@@ -25,6 +25,7 @@ class RefreshTokenService(
 
     fun issueRefreshToken(
         userId: String,
+        credentialsVersion: Long = 0,
         deviceId: String? = null,
         createdIp: String? = null
     ): String {
@@ -33,7 +34,8 @@ class RefreshTokenService(
 
         val token = jwtService.generateRefreshToken(
             userId = userId,
-            jti = jti
+            jti = jti,
+            credentialsVersion = credentialsVersion
         )
 
         persistRefreshToken(
@@ -65,6 +67,9 @@ class RefreshTokenService(
 
         val jti = claims.id
             ?: throw UnauthorizedException("Invalid refresh token")
+
+        val credentialsVersion =
+            (claims["credentialsVersion"] as? Number)?.toLong() ?: 0
 
         if (claims["type", String::class.java] != "refresh") {
             throw UnauthorizedException("Invalid refresh token")
@@ -118,7 +123,8 @@ class RefreshTokenService(
 
         val newToken = jwtService.generateRefreshToken(
             userId = userId,
-            jti = newJti
+            jti = newJti,
+            credentialsVersion = credentialsVersion
         )
 
         persistRefreshToken(

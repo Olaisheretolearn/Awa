@@ -24,7 +24,7 @@ class AuthenticationService(
             .findByEmailIgnoreCase(email)
             ?: throw UnauthorizedException("Invalid credentials")
 
-        if (!encoder.matches(password, user.password)) {
+        if (!user.isActive || !encoder.matches(password, user.password)) {
             throw UnauthorizedException("Invalid credentials")
         }
 
@@ -32,10 +32,10 @@ class AuthenticationService(
             ?: throw UnauthorizedException("Invalid user")
 
         val accessToken =
-            jwtService.generateAccessToken(userId)
+            jwtService.generateAccessToken(userId, user.credentialsVersion)
 
         val refreshToken =
-            refreshTokenService.issueRefreshToken(userId)
+            refreshTokenService.issueRefreshToken(userId, user.credentialsVersion)
 
         return AuthResponse(
             accessToken,
@@ -62,8 +62,26 @@ class AuthenticationService(
         val userId =
             jwtService.getUserIdFromToken(newRefreshToken)
 
+        val tokenCredentialsVersion =
+            jwtService.getCredentialsVersionFromToken(newRefreshToken)
+
+        val user = try {
+            userRepository.findById(org.bson.types.ObjectId(userId)).orElse(null)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+
+        if (
+            user == null ||
+            !user.isActive ||
+            user.credentialsVersion != tokenCredentialsVersion
+        ) {
+            refreshTokenService.revoke(newRefreshToken)
+            throw UnauthorizedException("Invalid or expired refresh token")
+        }
+
         val newAccessToken =
-            jwtService.generateAccessToken(userId)
+            jwtService.generateAccessToken(userId, user.credentialsVersion)
 
         return AuthResponse(
             newAccessToken,
