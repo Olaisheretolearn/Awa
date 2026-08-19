@@ -27,7 +27,8 @@ class JwtService(
         userId: String,
         type: String,
         expiry: Long,
-        jti: String? = null
+        jti: String? = null,
+        credentialsVersion: Long = 0
     ): String {
 
         val now = Date()
@@ -36,6 +37,7 @@ class JwtService(
         val builder = Jwts.builder()
             .subject(userId)
             .claim("type", type)
+            .claim("credentialsVersion", credentialsVersion)
             .issuedAt(now)
             .expiration(expiryTime)
 
@@ -48,22 +50,25 @@ class JwtService(
             .compact()
     }
 
-    fun generateAccessToken(userId: String): String =
+    fun generateAccessToken(userId: String, credentialsVersion: Long = 0): String =
         generateToken(
             userId = userId,
             type = "access",
-            expiry = accessTokenValidityMs
+            expiry = accessTokenValidityMs,
+            credentialsVersion = credentialsVersion
         )
 
     fun generateRefreshToken(
         userId: String,
-        jti: String
+        jti: String,
+        credentialsVersion: Long = 0
     ): String =
         generateToken(
             userId = userId,
             type = "refresh",
             expiry = refreshTokenValidityMs,
-            jti = jti
+            jti = jti,
+            credentialsVersion = credentialsVersion
         )
 
     fun validateToken(token: String): Boolean {
@@ -95,6 +100,9 @@ class JwtService(
     fun getUserIdFromToken(token: String): String {
         return getSignedClaims(token).payload.subject
     }
+
+    fun getCredentialsVersionFromToken(token: String): Long =
+        (getSignedClaims(token).payload["credentialsVersion"] as? Number)?.toLong() ?: 0
 
     fun getSignedClaims(token: String) =
         Jwts.parser()

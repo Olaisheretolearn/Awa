@@ -19,7 +19,6 @@ class UserService(
     private val userRepository: userRepository,
     private val roomRepository: RoomRepository,
     private val authorizationService: AuthorizationService,
-    private val refreshTokenService: RefreshTokenService,
     //inject encoder later
     private val encoder : Encoder
 ) {
@@ -72,24 +71,12 @@ class UserService(
             .orElseThrow{
                 AlreadyExistsException("User with email already exists")
             }
-        val updated = user.copy(isActive = false)
+        val updated = user.copy(
+            isActive = false,
+            credentialsVersion = user.credentialsVersion + 1
+        )
         return userRepository.save(updated).toDTO()
             }
-
-
-    fun changePassword(userId: String, actingUserId: String, current: String, newPassword: String) {
-        authorizationService.requireSelf(actingUserId, userId)
-        val user = userRepository.findById(ObjectId(userId))
-            .orElseThrow { RuntimeException("User not found") }
-        if (!encoder.matches(current, user.password)) {
-            throw IllegalArgumentException("Current password incorrect")
-        }
-        userRepository.save(user.copy(password = encoder.encode(newPassword)))
-        refreshTokenService.revokeAllForUser(userId)
-    }
-
-
-
 
 
     fun updateUser(userId: String, actingUserId: String, update:UserUpdateRequest):UserResponse{

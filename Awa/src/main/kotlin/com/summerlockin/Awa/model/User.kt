@@ -11,6 +11,7 @@ data class User(
     val firstname : String,
     val email :String,
     val password : String,
+    val credentialsVersion: Long = 0,
     val roomId: ObjectId? = null,
     val role: Role = Role.MEMBER,
     val joinedAt : Instant =Instant.now(),

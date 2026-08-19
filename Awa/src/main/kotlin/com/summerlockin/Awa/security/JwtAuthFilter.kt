@@ -55,6 +55,9 @@ class JwtAuthFilter(
             val userId =
                 jwtService.getUserIdFromToken(token)
 
+            val credentialsVersion =
+                jwtService.getCredentialsVersionFromToken(token)
+
             val objectId = try {
                 ObjectId(userId)
             } catch (_: IllegalArgumentException) {
@@ -67,7 +70,11 @@ class JwtAuthFilter(
                     .findById(objectId)
                     .orElse(null)
 
-            if (user != null) {
+            if (
+                user != null &&
+                user.isActive &&
+                user.credentialsVersion == credentialsVersion
+            ) {
 
                 val userDetails: UserDetails =
                     UserPrincipal(user)

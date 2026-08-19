@@ -37,6 +37,18 @@ class GlobalExceptionHandler {
     fun handleUnauthorized(ex: UnauthorizedException, request: HttpServletRequest) =
         err(HttpStatus.UNAUTHORIZED, code = "UNAUTHORIZED", msg = ex.message ?: "Authentication is required.", request, ex)
 
+    @ExceptionHandler(InvalidPasswordResetTokenException::class)
+    fun handleInvalidResetToken(ex: InvalidPasswordResetTokenException, request: HttpServletRequest) =
+        err(HttpStatus.BAD_REQUEST, code = "INVALID_RESET_TOKEN", msg = ex.message!!, request, ex)
+
+    @ExceptionHandler(InvalidCurrentPasswordException::class)
+    fun handleInvalidCurrentPassword(ex: InvalidCurrentPasswordException, request: HttpServletRequest) =
+        err(HttpStatus.BAD_REQUEST, code = "INVALID_CURRENT_PASSWORD", msg = ex.message!!, request, ex)
+
+    @ExceptionHandler(PasswordReuseException::class)
+    fun handlePasswordReuse(ex: PasswordReuseException, request: HttpServletRequest) =
+        err(HttpStatus.BAD_REQUEST, code = "PASSWORD_REUSE_NOT_ALLOWED", msg = ex.message!!, request, ex)
+
     // --- Access / method issues ---
     @ExceptionHandler(AccessDeniedException::class)
     fun handleForbidden(ex: AccessDeniedException, request: HttpServletRequest) =
